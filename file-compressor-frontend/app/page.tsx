@@ -28,17 +28,24 @@ export default function Component() {
   const handleUpload = async () => {
     if (!selectedFile) return
 
-    setState("uploading")
-    setStatusMessage("Uploading file...")
+    setState("uploading");
+    setStatusMessage("Uploading file...");
 
     try {
+      // Simulate a brief upload period before actual processing starts
+      // This matches the spirit of the reference UI's separate "uploading" phase
+      await new Promise(resolve => setTimeout(resolve, 500)); // Short delay
+
+      setState("processing");
+      setStatusMessage("Compressing file...");
+
       // Convert file to base64
-      const fileReader = new FileReader()
+      const fileReader = new FileReader();
       const base64Data = await new Promise<string>((resolve, reject) => {
-        fileReader.onload = (e) => resolve(e.target?.result as string)
-        fileReader.onerror = reject
-        fileReader.readAsDataURL(selectedFile)
-      })
+        fileReader.onload = (e) => resolve(e.target?.result as string);
+        fileReader.onerror = reject;
+        fileReader.readAsDataURL(selectedFile);
+      });
 
       // Upload to backend for compression
       const response = await fetch('/api/compress', {
@@ -48,25 +55,25 @@ export default function Component() {
         },
         body: JSON.stringify({
           fileName: selectedFile.name,
-          content: base64Data
-        })
-      })
+          content: base64Data,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to compress file')
+        const errorData = await response.json().catch(() => ({ message: 'Failed to compress file' }));
+        throw new Error(errorData.message || 'Failed to compress file');
       }
 
-      // Get the compressed file data
-      const compressedData = await response.arrayBuffer()
-      const compressedBlob = new Blob([compressedData], { type: 'application/octet-stream' })
+      const compressedData = await response.arrayBuffer();
+      const compressedBlob = new Blob([compressedData], { type: 'application/octet-stream' });
       
-      setState("completed")
-      setStatusMessage("Compression completed successfully!")
-      setCompressedFileUrl(URL.createObjectURL(compressedBlob))
-    } catch (error) {
-      setState("error")
-      setStatusMessage("Failed to compress file")
-      console.error('Error:', error)
+      setState("completed");
+      setStatusMessage("Compression completed successfully!");
+      setCompressedFileUrl(URL.createObjectURL(compressedBlob));
+    } catch (error: any) {
+      setState("error");
+      setStatusMessage(error.message || "An unknown error occurred during compression.");
+      console.error('Error:', error);
     }
   }
 
@@ -95,13 +102,13 @@ export default function Component() {
     switch (state) {
       case "uploading":
       case "processing":
-        return <Loader2 className="w-5 h-5 animate-spin" />
+        return <Loader2 data-testid="loader-icon" className="w-5 h-5 animate-spin" />
       case "completed":
-        return <CheckCircle className="w-5 h-5 text-green-600" />
+        return <CheckCircle data-testid="check-circle-icon" className="w-5 h-5 text-green-600" />
       case "error":
-        return <FileArchive className="w-5 h-5 text-red-600" />
+        return <FileArchive data-testid="error-icon" className="w-5 h-5 text-red-600" />
       default:
-        return <FileArchive className="w-5 h-5" />
+        return <FileArchive data-testid="default-status-icon" className="w-5 h-5" />
     }
   }
 
@@ -110,7 +117,7 @@ export default function Component() {
       <Card className="w-full max-w-md">
         <CardContent className="p-8 space-y-6">
           <div className="text-center">
-            <FileArchive className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+            <FileArchive data-testid="main-file-archive-icon" className="w-12 h-12 mx-auto mb-4 text-gray-600" />
             <h1 className="text-2xl font-semibold text-gray-900 mb-2">File Compressor</h1>
             <p className="text-sm text-gray-600">Upload a file to compress it</p>
           </div>
